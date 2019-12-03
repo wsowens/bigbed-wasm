@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>bigBedToBed</title>
+</head>
+    <script type="module">
+        import init, { init_panics, query_bigbed, open_bigbed, to_bed } from './bigbed_wasm.js'
+        
+        let submit_button = document.getElementById("submit_button");
+        let file_upload = document.getElementById("file_upload");
+        let export_button = document.getElementById("export");
+        let refresh_button = document.getElementById("refresh");
+        let status = document.getElementById("status");
+
+        function set_status(text, error = false, append = false) {
+            if (status == null) {
+                console.error("Cannot update status, status is null.");
+            }
+            if (append) {
+                status.innerText += text;
+            } else {
+                status.innerText = text;
+            }
+            if (error) {
+                status.style.color = "darkred";
+            } else {
+                status.style.color = "black";
+            }
+        }
+        set_status("Loading WASM... ");
+
+        let chr = document.getElementById("chr");
+        let start = document.getElementById("start");
+        let end = document.getElementById("end");
+        let count = document.getElementById("count");
+        let preview = document.getElementById("preview");
+
+        let bigbed = null;
+        let filename = null;
+
+        function handle_submit() {
+            if (file_upload.files.length == 0) {
+                set_status("Error: no files selected.", true);
+                return
+            }
+            let file = file_upload.files[0];
+            set_status(`Processing "${file.name}"...`)
+            let text = file.arrayBuffer().then(
+                (buff) => {
+                    buff = new Uint8Array(buff);
+                    bigbed = open_bigbed(buff);
+                    set_status("      done.", false, true);
+                    filename = file.name;
+                    // call the query function...
+                    //query();
+                // this could occur if file is to large, perhaps
+                }, (err) => {
+                    alert("Error!");
+                    console.error(err);
+                }
+            );
+        }
+        submit_button.addEventListener("click", handle_submit);
+
+        function query() {
+            if (bigbed == null) {
+                set_status("Error: please submit a BigBed file to view.", true)
+                return;
+            }
+            if (preview == null) {
+                console.error("Preview area not found!");
+                return;
+            }
+            if (filename == null) {
+                console.error("For some reason, filename is null.");
+                set_status(`Querying BigBed file...`);
+            } else {
+                set_status(`Querying "${filename}"...`);
+            }
+            let err = query_bigbed(preview, bigbed, chr.value, start.value, end.value, count.value);
+            if (err != "") {
+                console.error(err);
+                set_status(err, true);
+            } else {
+                set_status("     done.", false, true);
+            }
+        }
+        refresh.addEventListener("click", query);
+        chr.addEventListener("change", query);
+        start.addEventListener("change", query);
+        end.addEventListener("change", query);
+        count.addEventListener("change", query);
+        
+        function download(filename, data) {
+            let e = document.createElement('a');
+            e.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(data));
+            e.setAttribute('download', filename);
+            document.body.appendChild(e);
+            e.click();
+            document.body.removeChild(e);
+        }
+        
+        function export_bed() {
+            if (bigbed == null) {
+                set_status("Error: you must first submit a BigBed file before exporting to BED.", true)
+                console.error("submit a bigbed file first");
+                return
+            }
+            //sometimes this code doesn't work in time...
+            set_status(`Preparing "${filename}" for export...`);
+            let bed_name = filename;
+            if (filename == null) {
+                console.error("for some reason, the filename is null");
+                bed_name = "default";
+            }
+            if (bed_name.endsWith(".bb")) {
+                bed_name = bed_name.slice(0, -3);
+            } else if (bed_name.endsWith(".bigbed")) {
+                bed_name = bed_name.slice(0, -7);
+            }
+            bed_name += ".bed";
+            let before = Date.now();
+            let data = to_bed(bigbed);
+            let after = Date.now()
+            set_status("    done.", false, true);
+            set_status(` [${after - before} millis]`, false, true);
+            download(bed_name, data);
+        }
+
+        export_button.addEventListener("click", export_bed);
+
+        async function run() {
+            // call init() to initalize the WASM module
+            await init();
+            // call the WASM function to convert panics into console.err messages
+            // without this function, panics will appear as
+            // `RuntimeError: unreachable executed`
+            // comment this out if necessary
+            init_panics();
+            // notify the user that WASM has been loaded
+            set_status("    done.", false, true);
+        }
+        run();
+    </script>
+    <body>
+        <div>
+            <h3>Upload your BigBed file here:</h3>
+            <input type="file" id="file_upload" accept=".bb,.bigbed">
+            <input type=button value="Submit" id="submit_button">
+        </div>
+        <div>
+            <span><b>Status:</b></span>
+            <p style="display: inline-block" id=status></p>
+        </div>
+        <div>
+            <button id="export">Export to BED</button>
+        </div>
+        <div>
+        <div>
+            <h3>File Preview</h3>
+            <textarea id="preview" readonly="true"></textarea>
+            <br>
+            <button id="refresh">Load Preview</button>
+        </div>
+        <div>
+            <h4>Preview Filters</h4>
+            chr: <input id="chr">
+            start: <input id="start">
+            end: <input id="end">
+            max items (per chrom): <input id="count">
+        </div>
+        <div>
+        </div>
+    </body>
+</html>
