@@ -8,12 +8,27 @@
     <script type="module">
         import init, { init_panics, query_bigbed, open_bigbed, to_bed } from './bigbed_wasm.js'
         
-        let submit_button = document.getElementById("submit_button");
+        // file upload area
         let file_upload = document.getElementById("file_upload");
+
+        // various buttons
+        let submit_button = document.getElementById("submit_button");
         let export_button = document.getElementById("export");
         let refresh_button = document.getElementById("refresh");
+        
+        // area for setting the status
         let status = document.getElementById("status");
+        
+        // the textarea for rendering file previews
+        let preview = document.getElementById("preview");
 
+        // preview filter input elements
+        let chr = document.getElementById("chr");
+        let start = document.getElementById("start");
+        let end = document.getElementById("end");
+        let count = document.getElementById("count");
+
+        // function for setting the status
         function set_status(text, error = false, append = false) {
             if (status == null) {
                 console.error("Cannot update status, status is null.");
@@ -29,17 +44,14 @@
                 status.style.color = "black";
             }
         }
+        // go ahead and set the status to 'loading WASM...'
         set_status("Loading WASM... ");
 
-        let chr = document.getElementById("chr");
-        let start = document.getElementById("start");
-        let end = document.getElementById("end");
-        let count = document.getElementById("count");
-        let preview = document.getElementById("preview");
-
+        // initialize variables for the submitted bigbed and filename
         let bigbed = null;
         let filename = null;
 
+        // function that loads a new bigbed file based on the file_upload input
         function handle_submit() {
             if (file_upload.files.length == 0) {
                 set_status("Error: no files selected.", true);
@@ -64,6 +76,8 @@
         }
         submit_button.addEventListener("click", handle_submit);
 
+        // function that runs a query on the current bigbed file
+        // the filter fields (chr, start, end, max) are used to filter the output
         function query() {
             if (bigbed == null) {
                 set_status("Error: please submit a BigBed file to view.", true)
@@ -87,21 +101,30 @@
                 set_status("     done.", false, true);
             }
         }
+        // update query upon a click of the 'refresh preview' button
+        // or upon updating any of the filter inputs
         refresh.addEventListener("click", query);
         chr.addEventListener("change", query);
         start.addEventListener("change", query);
         end.addEventListener("change", query);
         count.addEventListener("change", query);
         
+        // a hacky function to download a file
         function download(filename, data) {
+            // create an <a> tag
             let e = document.createElement('a');
+            // set the fields to download [data] with [filename]
             e.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(data));
             e.setAttribute('download', filename);
+            // add to the body
             document.body.appendChild(e);
+            // simulate a click
             e.click();
+            // remove from body
             document.body.removeChild(e);
         }
         
+        // function to export a BED
         function export_bed() {
             if (bigbed == null) {
                 set_status("Error: you must first submit a BigBed file before exporting to BED.", true)
@@ -110,6 +133,7 @@
             }
             //sometimes this code doesn't work in time...
             set_status(`Preparing "${filename}" for export...`);
+            // get the name of the BED file (e.g. example.bb -> example.bed)
             let bed_name = filename;
             if (filename == null) {
                 console.error("for some reason, the filename is null");
@@ -121,16 +145,22 @@
                 bed_name = bed_name.slice(0, -7);
             }
             bed_name += ".bed";
+            // set up a timer
             let before = Date.now();
+            // run the bigbed file
             let data = to_bed(bigbed);
-            let after = Date.now()
+            // stop the timer
+            let after = Date.now();
+            // update the status
             set_status("    done.", false, true);
             set_status(` [${after - before} millis]`, false, true);
+            // download the BED
             download(bed_name, data);
         }
-
+        // hook above function to the export button
         export_button.addEventListener("click", export_bed);
 
+        // function for loading in the WASM module / initializing the program
         async function run() {
             // call init() to initalize the WASM module
             await init();
