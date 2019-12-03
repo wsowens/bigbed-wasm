@@ -20,6 +20,7 @@ Next, install the add the `wasm-bindgen` CLI:
 cargo +nightly install wasm-bindgen-cli
 ```
 We will use this to optimize our WASM modules and wrap them with nice JavaScript.
+(Note: if you don't have the nightly toolchain installed, run `rustup install nightly`.)
 
 With these requirements fulfilled, simply run `make` to generate the correct WASM module.
 ```
