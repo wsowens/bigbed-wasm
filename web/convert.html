@@ -62,7 +62,17 @@
             let text = file.arrayBuffer().then(
                 (buff) => {
                     buff = new Uint8Array(buff);
-                    bigbed = open_bigbed(buff);
+                    try {
+                        bigbed = open_bigbed(buff);
+                    } catch (err_msg) {
+                        
+                        // set the bigbed and filename to null
+                        bigbed = null;
+                        filename = null;
+                        set_status(`Error: ${err_msg}`, true);
+                        console.log(bigbed);
+                        return;
+                    }
                     set_status("      done.", false, true);
                     filename = file.name;
                     // call the query function...

@@ -187,18 +187,17 @@ pub fn init_panics() {
 }
 
 #[wasm_bindgen]
-pub fn open_bigbed(data: &[u8]) -> Option<BigBedWrapper> {
+pub fn open_bigbed(data: &[u8]) -> Result<BigBedWrapper, JsValue> {
     //TODO: move this
     web_sys::console::log_1(&format!("Processing {} bytes...", data.len()).into());
     let data = FileString::from_slice(data);
     // todo: refactor this into honest exports
     match BigBed::from_file(data) {
         Err(x) => {
-            alert(&format!("{}", x));
-            None
+            Err(format!("{}", x).into())
         }
         Ok(bb) => {
-            Some(BigBedWrapper(bb))
+            Ok(BigBedWrapper(bb))
         }
     }
 }
